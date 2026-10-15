@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jinx 週邊商品預購計算表</title>
+    <!-- 引入 Tailwind CSS 與 Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 SheetJS (xlsx) 用於前端讀取與生成 Excel 檔 -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            position: relative;
+            min-height: 100vh;
+        }
+        /* 固定且淡化的背景圖設定 (改抓 pic/bg.jpg 或同層 bg.jpg，這裡指向 pic/bg.jpg) */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('pic/bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0.2;
+            z-index: -1;
+        }
+        /* 圖片懸浮放大時的特殊樣式（往右下方展開，不被表格限制） */
+        .img-container {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            margin: 0 auto;
+        }
+        .img-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+            transform-origin: top left;
+            z-index: 10;
+        }
+        .img-container img:hover {
+            transform: scale(3.5);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+            z-index: 50;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body class="text-slate-800 py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-6xl mx-auto">
+        <!-- 頁面標題（半透明毛玻璃效果） -->
+        <div class="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm border border-white/40 p-6 mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">✨ Jinx 週邊商品預購計算表</h1>
+                <p class="text-sm text-slate-600 mt-1">請在下方欄位輸入您想要的購買數量，系統將自動幫您即時計算總金額與檢查限購數量。</p>
+            </div>
+            <!-- 總金額與滿額贈品顯示卡片 -->
+            <div class="bg-indigo-50/80 backdrop-blur-sm border border-indigo-100/60 rounded-xl px-6 py-4 flex flex-col gap-3 min-w-[280px]">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <div class="text-xs text-indigo-600 font-medium">總計金額 (TWD)</div>
+                        <div id="grandTotal" class="text-2xl font-bold text-indigo-900">NT$ 0</div>
+                    </div>
+                    <!-- 按鈕群組：清除、匯入、匯出 Excel -->
+                    <div class="flex flex-col gap-1.5">
+                        <button onclick="resetForm()" class="bg-white/80 hover:bg-white text-indigo-600 text-xs px-3 py-1 rounded-lg border border-indigo-200 transition font-medium shadow-sm">
+                            清除全部
+                        </button>
+                        <!-- 隱藏的檔案上傳 input -->
+                        <input type="file" id="excelFile" accept=".xlsx, .xls" class="hidden" onchange="importExcel(event)">
+                        <button onclick="document.getElementById('excelFile').click()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1">
+                            📂 匯入 Excel
+                        </button>
+                        <button onclick="exportExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1">
+                            📊 匯出 Excel
+                        </button>
+                    </div>
+                </div>
+                <!-- 滿額贈品顯示區塊（維持 KRW 門檻換算，此處總額改以台幣或維持KRW計算，依原邏輯） -->
+                <div class="border-t border-indigo-100/80 pt-2 flex flex-col gap-1.5 text-xs font-medium text-slate-700">
+                    <div id="gift5w" class="flex items-center gap-1.5">
+                        <span>📷</span> <span>5萬韓元滿額親密相卡：0 張</span>
+                    </div>
+                    <div id="gift10w" class="flex items-center gap-1.5">
+                        <span>🃏</span> <span>10萬韓元滿額小卡+透卡組：0 組</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 商品表格卡片（半透明毛玻璃效果） -->
+        <div class="bg-white/70 backdrop-blur-md rounded-2xl shadow-sm border border-white/40 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100/60 text-slate-700 text-xs uppercase tracking-wider border-b border-slate-200/60">
+                            <th class="py-3 px-4 font-semibold w-16 text-center">序號</th>
+                            <th class="py-3 px-4 font-semibold w-20 text-center">商品圖</th>
+                            <th class="py-3 px-4 font-semibold">商品名稱 / 備註</th>
+                            <th class="py-3 px-4 font-semibold text-right">單價 (TWD)</th>
+                            <th class="py-3 px-4 font-semibold text-center">購買數量</th>
+                            <th class="py-3 px-4 font-semibold text-center">限購數量</th>
+                            <th class="py-3 px-4 font-semibold text-right">單項總價</th>
+                        </tr>
+                    </thead>
+                    <tbody id="productTableBody" class="divide-y divide-slate-200/40 text-sm">
+                        <!-- 動態生成商品列 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="text-center text-xs text-slate-500 mt-6 font-medium drop-shadow-sm">
+            本網頁僅供個人試算使用，所有輸入資料皆僅存於您的裝置中，不會發送或回傳至任何伺服器。
+        </div>
+    </div>
+
+    <script>
+        const products = [
+            { id: "1", name: "Jinx-Triumph壓克力立牌", price: 850, limit: 1 },
+            { id: "2.1", name: "Jinx-Date壓克力立牌 Joo JaeKyung", price: 590, limit: 1, imgId: "002" },
+            { id: "2.2", name: "Jinx-Date壓克力立牌 Kim Dan", price: 590, limit: 1, imgId: "002" },
+            { id: "3.1", name: "Jinx-壓克力立牌 Little Jaekyung", price: 350, limit: 1, imgId: "003" },
+            { id: "3.2", name: "Jinx-壓克力立牌 Kim Dan", price: 350, limit: 1, imgId: "003" },
+            { id: "4", name: "Jinx-随機卡包ver.3", price: 150, limit: 2, remark: "18張随機3" },
+            { id: "5", name: "Jinx-隨機迷你立磚", price: 180, limit: 1, remark: "4款隨機1款" },
+            { id: "6", name: "Jinx-隨機迷你立牌", price: 130, limit: 2, remark: "10款随機1款" },
+            { id: "7", name: "Jinx-徽章組", price: 280, limit: 1 },
+            { id: "8", name: "Jinx-徽章組(LITTLE ver.)", price: 280, limit: 1 },
+            { id: "9", name: "Jinx-隨機拍立得(KYUNGDAN STUDIO DATE)", price: 150, limit: 2, remark: "12種隨機1種" },
+            { id: "10", name: "Jinx-JaeKyung應援毛巾", price: 540, limit: 1 },
+            { id: "11", name: "Jinx-JaeKyung's拳擊手套鑰匙圈", price: 620, limit: 1 },
+            { id: "12", name: "Jinx-JaeKyung成長紀錄組", price: 620, limit: 1 },
+            { id: "13", name: "Jinx-Kim Dan成長紀錄組", price: 620, limit: 1 },
+            { id: "14", name: "Jinx-JaeKyung Trading Card(随機)", price: 120, limit: 1, remark: "7種随機1種" },
+            { id: "15", name: "Jinx-明信片組", price: 540, limit: 1 },
+            { id: "16", name: "Jinx-隨機底片組(HUG BEAR)", price: 310, limit: 1, remark: "4款小卡随機1張" },
+            { id: "17", name: "Jinx-抱枕(WOLF JAEKYUNG)", price: 880, limit: 1 },
+            { id: "18", name: "Jinx-抱枕(HAMSTER DAN)", price: 880, limit: 1 },
+            { id: "19", name: "Jinx-LED場景模型", price: 960, limit: 1 },
+            { id: "20", name: "Jinx-Kim Dan證件照組(隨機)", price: 220, limit: 1, remark: "4款隨機1種" },
+            { id: "21", name: "Jinx-隨機迷你抱枕鑰匙圈", price: 260, limit: 1, remark: "6款隨機1種" },
+            { id: "22", name: "Jinx-JaeKyung滑鼠墊", price: 900, limit: 1 },
+            { id: "23", name: "Jinx-海報", price: 320, limit: 1 },
+            { id: "24", name: "Jinx-JaeKyung大抱枕", price: 1140, limit: 1 },
+            { id: "25", name: "Jinx-毛毯", price: 880, limit: 1 },
+            { id: "26.1", name: "DAYBREAK-絨毛娃娃Joo JaeKyung", price: 590, limit: 1, imgId: "026" },
+            { id: "26.2", name: "DAYBREAK-絨毛娃娃Kim Dan", price: 590, limit: 1, imgId: "026" },
+            { id: "27", name: "Jinx-BBOSIRAEGI MFC選手服", price: 450, limit: 1 },
+            { id: "28", name: "Jinx-BBOSIRAEGI 物理治療師制服", price: 660, limit: 1 },
+            { id: "29", name: "Jinx-BBOSIRAEGI 動物帽子組", price: 660, limit: 1 },
+            { id: "30", name: "Jinx-Team Black圓筒行李袋", price: 2700, limit: 1 },
+            { id: "31", name: "Jinx-Team Black POLO衫", price: 1800, limit: 1 },
+            { id: "32.1", name: "Jinx-Vol.1(韓版)", price: 500, limit: 1, imgId: "032" },
+            { id: "32.2", name: "Jinx-Vol.2(韓版)", price: 500, limit: 1, imgId: "032" },
+            { id: "33", name: "JINX一卡通(Joo JaeKyung)", price: 520, limit: 1 },
+            { id: "34", name: "JINX 一卡通(Kim Dan)", price: 520, limit: 1 },
+            { id: "35", name: "JINX-滑鼠墊", price: 390, limit: 1 },
+            { id: "36", name: "JINX-鳳梨牛軋餅乾", price: 170, limit: 1 }
+        ];
+
+        let currentGrandTotal = 0;
+        let currentGift5w = 0;
+        let currentGift10w = 0;
+
+        function renderTable() {
+            const tbody = document.getElementById('productTableBody');
+            tbody.innerHTML = '';
+            
+            products.forEach((p, index) => {
+                // 決定圖片檔名：若有指定 imgId 則用 imgId，否則取主 id 的整數部分轉 3 碼
+                let fileBaseNum = p.imgId ? p.imgId : p.id.split('.')[0].padStart(3, '0');
+                const imgFileName = `pic/${fileBaseNum}.jpg`;
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-white/40 transition-colors";
+                tr.innerHTML = `
+                    <td class="py-3 px-4 text-center font-bold text-indigo-700">${p.id}</td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="img-container">
+                            <img src="${imgFileName}" alt="${p.name}" 
+                                class="w-12 h-12 object-cover rounded-lg border border-slate-200/60 shadow-sm cursor-pointer" 
+                                onerror="this.src='https://via.placeholder.com/48?text=No+Img'">
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="font-medium text-slate-800">${p.name}</div>
+                        ${p.remark ? `<div class="text-xs text-rose-500 font-medium mt-0.5">備註：${p.remark}</div>` : ''}
+                    </td>
+                    <td class="py-3 px-4 text-right text-slate-700">NT$ ${p.price.toLocaleString()}</td>
+                    <td class="py-3 px-4 text-center">
+                        <input type="number" id="qty_${index}" min="0" max="${p.limit}" value="0" 
+                            oninput="calculateTotal()" 
+                            class="w-20 text-center border border-slate-300 rounded-lg py-1 px-2 bg-white/90 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
+                    </td>
+                    <td class="py-3 px-4 text-center text-slate-500 text-xs">${p.limit}</td>
+                    <td id="subtotal_${index}" class="py-3 px-4 text-right font-semibold text-slate-800">NT$ 0</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function calculateTotal() {
+            currentGrandTotal = 0;
+            products.forEach((p, index) => {
+                const qtyInput = document.getElementById(`qty_${index}`);
+                let qty = parseInt(qtyInput.value) || 0;
+                
+                if (qty > p.limit) {
+                    qty = p.limit;
+                    qtyInput.value = qty;
+                }
+                if (qty < 0) {
+                    qty = 0;
+                    qtyInput.value = qty;
+                }
+
+                const subtotal = qty * p.price;
+                currentGrandTotal += subtotal;
+                
+                document.getElementById(`subtotal_${index}`).innerText = `NT$ ${subtotal.toLocaleString()}`;
+            });
+
+            document.getElementById('grandTotal').innerText = `NT$ ${currentGrandTotal.toLocaleString()}`;
+
+            // 滿額贈品維持原本以韓元為基準的邏輯（假設總金額若轉回韓元或直接對應門檻，此處保留原先計算架構或以TWD對應換算，這裡用大約匯率回推 KRW 換算贈品）
+            const approxKrw = currentGrandTotal / 0.02296;
+            currentGift5w = approxKrw >= 50000 ? 1 : 0;
+            currentGift10w = Math.floor(approxKrw / 100000);
+            if (currentGift10w > 4) {
+                currentGift10w = 4;
+            }
+
+            document.getElementById('gift5w').innerHTML = `<span>📷</span> <span>5萬韓元滿額親密相卡：${currentGift5w} 張</span>`;
+            document.getElementById('gift10w').innerHTML = `<span>🃏</span> <span>10萬韓元滿額小卡+透卡組：${currentGift10w} 組</span>`;
+        }
+
+        function resetForm() {
+            products.forEach((p, index) => {
+                document.getElementById(`qty_${index}`).value = 0;
+            });
+            calculateTotal();
+        }
+
+        function exportExcel() {
+            let excelData = [];
+            let hasItem = false;
+
+            products.forEach((p, index) => {
+                const qty = parseInt(document.getElementById(`qty_${index}`).value) || 0;
+                if (qty > 0) {
+                    hasItem = true;
+                    const subtotal = qty * p.price;
+                    excelData.push({
+                        "序號": p.id,
+                        "商品名稱": p.name,
+                        "備註": p.remark || "",
+                        "單價 (TWD)": p.price,
+                        "購買數量": qty,
+                        "單項總價 (TWD)": subtotal
+                    });
+                }
+            });
+
+            if (!hasItem) {
+                alert("目前沒有選購任何商品喔！");
+                return;
+            }
+
+            excelData.push({});
+            excelData.push({ "序號": "=== 結算資訊 ===" });
+            excelData.push({ "序號": "總金額 (TWD)", "商品名稱": currentGrandTotal });
+            excelData.push({ "序號": "5萬韓元滿額親密相卡", "商品名稱": `${currentGift5w} 張` });
+            excelData.push({ "序號": "10萬韓元滿額小卡+透卡組", "商品名稱": `${currentGift10w} 組` });
+
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "預購清單");
+
+            const colWidths = [
+                {wch: 8},
+                {wch: 35},
+                {wch: 20},
+                {wch: 15},
+                {wch: 10},
+                {wch: 18}
+            ];
+            worksheet['!cols'] = colWidths;
+
+            XLSX.writeFile(workbook, "jinx_order_summary.xlsx");
+        }
+
+        function importExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+
+                    products.forEach((p, index) => {
+                        document.getElementById(`qty_${index}`).value = 0;
+                    });
+
+                    let matchCount = 0;
+                    json.forEach(row => {
+                        const name = row["商品名稱"];
+                        const qty = parseInt(row["購買數量"]) || 0;
+
+                        if (name && qty > 0) {
+                            const productIndex = products.findIndex(p => p.name === name);
+                            if (productIndex !== -1) {
+                                document.getElementById(`qty_${productIndex}`).value = qty;
+                                matchCount++;
+                            }
+                        }
+                    });
+
+                    calculateTotal();
+                    if (matchCount > 0) {
+                        alert(`成功匯入！已自動載入 ${matchCount} 項商品的購買數量。`);
+                    } else {
+                        alert("未能識別檔案中的商品資料，請確認是否為正確的預購清單 Excel 檔。");
+                    }
+                } catch (error) {
+                    console.error(error);
+                    alert("讀取 Excel 檔案時發生錯誤，請確認檔案格式是否正確。");
+                }
+                
+                event.target.value = '';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        renderTable();
+    </script>
+</body>
+</html>
