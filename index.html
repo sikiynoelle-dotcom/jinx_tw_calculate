@@ -15,7 +15,7 @@
             position: relative;
             min-height: 100vh;
         }
-        /* 固定且淡化的背景圖設定 */
+        /* 固定且淡化的背景圖設定 (透明度調高至 0.4，讓背景更明顯) */
         body::before {
             content: "";
             position: fixed;
@@ -27,7 +27,7 @@
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
-            opacity: 0.2;
+            opacity: 0.4; 
             z-index: -1;
         }
         /* 圖片懸浮放大時的特殊樣式（往右下方展開，不被表格限制） */
@@ -83,7 +83,7 @@
                         </button>
                     </div>
                 </div>
-                <!-- 滿額贈品顯示區塊（更新後名稱與單位） -->
+                <!-- 滿額贈品顯示區塊 -->
                 <div class="border-t border-indigo-100/80 pt-2 flex flex-col gap-1.5 text-xs font-medium text-slate-700">
                     <div id="gift1000" class="flex items-center gap-1.5">
                         <span>📷</span> <span>EVENT1 Skinship：0 張</span>
@@ -229,7 +229,6 @@
 
             document.getElementById('grandTotal').innerText = `NT$ ${currentGrandTotal.toLocaleString()}`;
 
-            // 贈品計算邏輯
             gift1000Count = currentGrandTotal >= 1000 ? 1 : 0;
 
             if (currentGrandTotal >= 2000) {
