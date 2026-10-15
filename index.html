@@ -15,7 +15,7 @@
             position: relative;
             min-height: 100vh;
         }
-        /* 固定且淡化的背景圖設定 (改抓 pic/bg.jpg 或同層 bg.jpg，這裡指向 pic/bg.jpg) */
+        /* 固定且淡化的背景圖設定 */
         body::before {
             content: "";
             position: fixed;
@@ -83,13 +83,13 @@
                         </button>
                     </div>
                 </div>
-                <!-- 滿額贈品顯示區塊（維持 KRW 門檻換算，此處總額改以台幣或維持KRW計算，依原邏輯） -->
+                <!-- 滿額贈品顯示區塊（分兩排，加上對應 Emoji） -->
                 <div class="border-t border-indigo-100/80 pt-2 flex flex-col gap-1.5 text-xs font-medium text-slate-700">
-                    <div id="gift5w" class="flex items-center gap-1.5">
-                        <span>📷</span> <span>5萬韓元滿額親密相卡：0 張</span>
+                    <div id="gift1000" class="flex items-center gap-1.5">
+                        <span>📷</span> <span>滿1000元親密相卡：0 張</span>
                     </div>
-                    <div id="gift10w" class="flex items-center gap-1.5">
-                        <span>🃏</span> <span>10萬韓元滿額小卡+透卡組：0 組</span>
+                    <div id="gift2000" class="flex items-center gap-1.5">
+                        <span>🃏</span> <span>滿2000元隨機小卡：0 張</span>
                     </div>
                 </div>
             </div>
@@ -167,15 +167,14 @@
         ];
 
         let currentGrandTotal = 0;
-        let currentGift5w = 0;
-        let currentGift10w = 0;
+        let gift1000Count = 0;
+        let gift2000Count = 0;
 
         function renderTable() {
             const tbody = document.getElementById('productTableBody');
             tbody.innerHTML = '';
             
             products.forEach((p, index) => {
-                // 決定圖片檔名：若有指定 imgId 則用 imgId，否則取主 id 的整數部分轉 3 碼
                 let fileBaseNum = p.imgId ? p.imgId : p.id.split('.')[0].padStart(3, '0');
                 const imgFileName = `pic/${fileBaseNum}.jpg`;
 
@@ -230,16 +229,20 @@
 
             document.getElementById('grandTotal').innerText = `NT$ ${currentGrandTotal.toLocaleString()}`;
 
-            // 滿額贈品維持原本以韓元為基準的邏輯（假設總金額若轉回韓元或直接對應門檻，此處保留原先計算架構或以TWD對應換算，這裡用大約匯率回推 KRW 換算贈品）
-            const approxKrw = currentGrandTotal / 0.02296;
-            currentGift5w = approxKrw >= 50000 ? 1 : 0;
-            currentGift10w = Math.floor(approxKrw / 100000);
-            if (currentGift10w > 4) {
-                currentGift10w = 4;
+            // 新版滿額贈品計算邏輯 (TWD)
+            // 1. 滿1000元親密相卡：滿1000元以上固定 1 張，不可累贈
+            gift1000Count = currentGrandTotal >= 1000 ? 1 : 0;
+
+            // 2. 滿2000元隨機小卡：滿2000元送2張，之後每滿1000元加贈1張，可累贈
+            if (currentGrandTotal >= 2000) {
+                // 超過2000元的部分，每滿1000元多1張
+                gift2000Count = 2 + Math.floor((currentGrandTotal - 2000) / 1000);
+            } else {
+                gift2000Count = 0;
             }
 
-            document.getElementById('gift5w').innerHTML = `<span>📷</span> <span>5萬韓元滿額親密相卡：${currentGift5w} 張</span>`;
-            document.getElementById('gift10w').innerHTML = `<span>🃏</span> <span>10萬韓元滿額小卡+透卡組：${currentGift10w} 組</span>`;
+            document.getElementById('gift1000').innerHTML = `<span>📷</span> <span>滿1000元親密相卡：${gift1000Count} 張</span>`;
+            document.getElementById('gift2000').innerHTML = `<span>🃏</span> <span>滿2000元隨機小卡：${gift2000Count} 張</span>`;
         }
 
         function resetForm() {
@@ -277,8 +280,8 @@
             excelData.push({});
             excelData.push({ "序號": "=== 結算資訊 ===" });
             excelData.push({ "序號": "總金額 (TWD)", "商品名稱": currentGrandTotal });
-            excelData.push({ "序號": "5萬韓元滿額親密相卡", "商品名稱": `${currentGift5w} 張` });
-            excelData.push({ "序號": "10萬韓元滿額小卡+透卡組", "商品名稱": `${currentGift10w} 組` });
+            excelData.push({ "序號": "滿1000元親密相卡", "商品名稱": `${gift1000Count} 張` });
+            excelData.push({ "序號": "滿2000元隨機小卡", "商品名稱": `${gift2000Count} 張` });
 
             const worksheet = XLSX.utils.json_to_sheet(excelData);
             const workbook = XLSX.utils.book_new();
