@@ -15,7 +15,7 @@
             position: relative;
             min-height: 100vh;
         }
-        /* 固定且淡化的背景圖設定 (透明度調高至 0.4，讓背景更明顯) */
+        /* 固定且淡化的背景圖設定 (透明度 0.4) */
         body::before {
             content: "";
             position: fixed;
@@ -108,6 +108,7 @@
                             <th class="py-3 px-4 font-semibold text-center">購買數量</th>
                             <th class="py-3 px-4 font-semibold text-center">限購數量</th>
                             <th class="py-3 px-4 font-semibold text-right">單項總價</th>
+                            <th class="py-3 px-4 font-semibold text-center w-24">Sold out</th>
                         </tr>
                     </thead>
                     <tbody id="productTableBody" class="divide-y divide-slate-200/40 text-sm">
@@ -179,6 +180,7 @@
                 const imgFileName = `pic/${fileBaseNum}.jpg`;
 
                 const tr = document.createElement('tr');
+                tr.id = `row_${index}`;
                 tr.className = "hover:bg-white/40 transition-colors";
                 tr.innerHTML = `
                     <td class="py-3 px-4 text-center font-bold text-indigo-700">${p.id}</td>
@@ -190,10 +192,10 @@
                         </div>
                     </td>
                     <td class="py-3 px-4">
-                        <div class="font-medium text-slate-800">${p.name}</div>
+                        <div id="name_${index}" class="font-medium text-slate-800">${p.name}</div>
                         ${p.remark ? `<div class="text-xs text-rose-500 font-medium mt-0.5">備註：${p.remark}</div>` : ''}
                     </td>
-                    <td class="py-3 px-4 text-right text-slate-700">NT$ ${p.price.toLocaleString()}</td>
+                    <td id="price_${index}" class="py-3 px-4 text-right text-slate-700">NT$ ${p.price.toLocaleString()}</td>
                     <td class="py-3 px-4 text-center">
                         <input type="number" id="qty_${index}" min="0" max="${p.limit}" value="0" 
                             oninput="calculateTotal()" 
@@ -201,17 +203,58 @@
                     </td>
                     <td class="py-3 px-4 text-center text-slate-500 text-xs">${p.limit}</td>
                     <td id="subtotal_${index}" class="py-3 px-4 text-right font-semibold text-slate-800">NT$ 0</td>
+                    <td class="py-3 px-4 text-center">
+                        <input type="checkbox" id="soldout_${index}" onchange="toggleSoldOut(${index})" 
+                            class="w-4 h-4 text-rose-600 bg-gray-100 border-gray-300 rounded focus:ring-rose-500 cursor-pointer">
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        function toggleSoldOut(index) {
+            const isSoldOut = document.getElementById(`soldout_${index}`).checked;
+            const qtyInput = document.getElementById(`qty_${index}`);
+            const row = document.getElementById(`row_${index}`);
+            const nameEl = document.getElementById(`name_${index}`);
+            const priceEl = document.getElementById(`price_${index}`);
+            const subtotalEl = document.getElementById(`subtotal_${index}`);
+
+            if (isSoldOut) {
+                // 數量歸零並鎖定輸入框
+                qtyInput.value = 0;
+                qtyInput.disabled = true;
+                // 整行加入反灰與刪除線視覺效果
+                row.classList.add("bg-slate-200/60", "text-slate-400", "opacity-60");
+                nameEl.classList.add("line-through");
+                priceEl.classList.add("line-through");
+                subtotalEl.classList.add("line-through");
+            } else {
+                // 解除鎖定與反灰
+                qtyInput.disabled = false;
+                row.classList.remove("bg-slate-200/60", "text-slate-400", "opacity-60");
+                nameEl.classList.remove("line-through");
+                priceEl.classList.remove("line-through");
+                subtotalEl.classList.remove("line-through");
+            }
+
+            calculateTotal();
         }
 
         function calculateTotal() {
             currentGrandTotal = 0;
             products.forEach((p, index) => {
                 const qtyInput = document.getElementById(`qty_${index}`);
+                const isSoldOut = document.getElementById(`soldout_${index}`).checked;
+                
                 let qty = parseInt(qtyInput.value) || 0;
                 
+                // 如果被勾選 Sold out，強制金額為 0 且不計入
+                if (isSoldOut) {
+                    qty = 0;
+                    qtyInput.value = 0;
+                }
+
                 if (qty > p.limit) {
                     qty = p.limit;
                     qtyInput.value = qty;
@@ -229,6 +272,7 @@
 
             document.getElementById('grandTotal').innerText = `NT$ ${currentGrandTotal.toLocaleString()}`;
 
+            // 贈品計算邏輯
             gift1000Count = currentGrandTotal >= 1000 ? 1 : 0;
 
             if (currentGrandTotal >= 2000) {
@@ -244,6 +288,8 @@
         function resetForm() {
             products.forEach((p, index) => {
                 document.getElementById(`qty_${index}`).value = 0;
+                document.getElementById(`soldout_${index}`).checked = false;
+                toggleSoldOut(index);
             });
             calculateTotal();
         }
@@ -253,8 +299,11 @@
             let hasItem = false;
 
             products.forEach((p, index) => {
+                const isSoldOut = document.getElementById(`soldout_${index}`).checked;
                 const qty = parseInt(document.getElementById(`qty_${index}`).value) || 0;
-                if (qty > 0) {
+                
+                // 沒被勾選 Sold out 且數量大於 0 才匯出
+                if (!isSoldOut && qty > 0) {
                     hasItem = true;
                     const subtotal = qty * p.price;
                     excelData.push({
@@ -269,7 +318,7 @@
             });
 
             if (!hasItem) {
-                alert("目前沒有選購任何商品喔！");
+                alert("目前沒有選購任何有效商品喔！");
                 return;
             }
 
@@ -312,6 +361,8 @@
 
                     products.forEach((p, index) => {
                         document.getElementById(`qty_${index}`).value = 0;
+                        document.getElementById(`soldout_${index}`).checked = false;
+                        toggleSoldOut(index);
                     });
 
                     let matchCount = 0;
@@ -321,7 +372,7 @@
 
                         if (name && qty > 0) {
                             const productIndex = products.findIndex(p => p.name === name);
-                            if (productIndex !== -1) {
+                            if (productIndex !== -1 && !document.getElementById(`soldout_${productIndex}`).checked) {
                                 document.getElementById(`qty_${productIndex}`).value = qty;
                                 matchCount++;
                             }
