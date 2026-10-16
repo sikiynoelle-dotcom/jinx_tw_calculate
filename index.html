@@ -69,12 +69,13 @@
             </div>
             <!-- 總金額與滿額贈品顯示卡片 -->
             <div class="bg-indigo-50/80 backdrop-blur-sm border border-indigo-100/60 rounded-xl px-6 py-4 flex flex-col gap-3 min-w-[280px]">
-                <div class="flex justify-between items-center">
+                <!-- 調整此處的 flex-row justify-between 與 gap 讓左右有足夠間距 -->
+                <div class="flex flex-row justify-between items-center gap-8">
                     <div>
                         <div class="text-xs text-indigo-600 font-medium">總計金額 (TWD)</div>
                         <div id="grandTotal" class="text-2xl font-bold text-indigo-900">NT$ 0</div>
                     </div>
-                    <!-- 按鈕群組：切換按鈕每次只顯示4個字 -->
+                    <!-- 按鈕群組 -->
                     <div class="flex flex-col gap-1.5">
                         <button id="toggleModeBtn" onclick="toggleCompactMode()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1">
                             手機模式
