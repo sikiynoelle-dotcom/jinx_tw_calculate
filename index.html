@@ -30,7 +30,7 @@
             opacity: 0.4; 
             z-index: -1;
         }
-        /* 圖片懸浮放大時的特殊樣式（往右下方展開，不被表格限制） */
+        /* 圖片懸浮放大時的特殊樣式（網頁預覽仍從 pic/ 讀取原圖） */
         .img-container {
             position: relative;
             width: 48px;
@@ -180,6 +180,7 @@
             
             products.forEach((p, index) => {
                 let fileBaseNum = p.imgId ? p.imgId : p.id.split('.')[0].padStart(3, '0');
+                // 網頁預覽維持從 pic/ 讀取
                 const imgFileName = `pic/${fileBaseNum}.jpg`;
 
                 const tr = document.createElement('tr');
@@ -342,7 +343,7 @@
             XLSX.writeFile(workbook, "jinx_order_summary.xlsx");
         }
 
-        // 修改：精準限制 Excel 圖片高度不得超過 1.99cm、寬度不得超過 1.88cm，自動等比縮放不超出格子
+        // 修改：匯出含圖 Excel 時，圖片直接抓取已處理好的 img_zoom/ 資料夾圖片
         function exportExcelWithImages() {
             let hasItem = false;
             products.forEach((p, index) => {
@@ -366,9 +367,9 @@
                         th { background-color: #f1f5f9; font-weight: bold; }
                         .text-left { text-align: left; }
                         .text-right { text-align: right; }
-                        /* 嚴格限制圖片高度最大 1.99cm、寬度最大 1.88cm，透過 max-width / max-height 等比例適應 */
-                        .img-cell { width: 80px; height: 85px; text-align: center; vertical-align: middle; overflow: hidden; }
-                        .product-img { max-width: 1.88cm; max-height: 1.99cm; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto; border-radius: 4px; }
+                        /* 直接讀取 img_zoom 內處理好的圖片，維持乾淨整齊的格子大小 */
+                        .img-cell { width: 75px; height: 75px; text-align: center; vertical-align: middle; }
+                        .product-img { width: 64px; height: 64px; object-fit: contain; display: block; margin: 0 auto; border-radius: 4px; }
                     </style>
                 </head>
                 <body>
@@ -394,7 +395,8 @@
 
                 if (!isSoldOut && qty > 0) {
                     let fileBaseNum = p.imgId ? p.imgId : p.id.split('.')[0].padStart(3, '0');
-                    const imgUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1) + `pic/${fileBaseNum}.jpg`;
+                    // 關鍵修改：圖片來源指向 img_zoom 資料夾
+                    const imgUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1) + `img_zoom/${fileBaseNum}.jpg`;
                     const subtotal = qty * p.price;
 
                     html += `
