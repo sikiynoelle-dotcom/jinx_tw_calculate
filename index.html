@@ -342,7 +342,7 @@
             XLSX.writeFile(workbook, "jinx_order_summary.xlsx");
         }
 
-        // 修改：嚴格限制 Excel 內的圖片尺寸為 64px × 64px（剛好 2 倍大），並強制儲存格置中與對齊
+        // 修改：精準限制 Excel 圖片高度不得超過 1.99cm、寬度不得超過 1.88cm，自動等比縮放不超出格子
         function exportExcelWithImages() {
             let hasItem = false;
             products.forEach((p, index) => {
@@ -366,9 +366,9 @@
                         th { background-color: #f1f5f9; font-weight: bold; }
                         .text-left { text-align: left; }
                         .text-right { text-align: right; }
-                        /* 嚴格限制圖片寬高為 64px (網頁縮圖的 2 倍大)，並保持比例與圓角 */
-                        .img-cell { width: 75px; height: 75px; text-align: center; vertical-align: middle; }
-                        .product-img { width: 64px; height: 64px; object-fit: cover; border-radius: 4px; display: block; margin: 0 auto; }
+                        /* 嚴格限制圖片高度最大 1.99cm、寬度最大 1.88cm，透過 max-width / max-height 等比例適應 */
+                        .img-cell { width: 80px; height: 85px; text-align: center; vertical-align: middle; overflow: hidden; }
+                        .product-img { max-width: 1.88cm; max-height: 1.99cm; width: auto; height: auto; object-fit: contain; display: block; margin: 0 auto; border-radius: 4px; }
                     </style>
                 </head>
                 <body>
