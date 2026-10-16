@@ -342,7 +342,7 @@
             XLSX.writeFile(workbook, "jinx_order_summary.xlsx");
         }
 
-        // 新增：匯出含統一尺寸商品圖的 Excel (透過 HTML 格式轉 Excel)
+        // 修改：嚴格限制 Excel 內的圖片尺寸為 64px × 64px（剛好 2 倍大），並強制儲存格置中與對齊
         function exportExcelWithImages() {
             let hasItem = false;
             products.forEach((p, index) => {
@@ -362,11 +362,13 @@
                     <meta charset="UTF-8">
                     <style>
                         table { border-collapse: collapse; width: 100%; font-family: 'Microsoft JhengHei', sans-serif; }
-                        th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: center; vertical-align: middle; }
+                        th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: center; vertical-align: middle; }
                         th { background-color: #f1f5f9; font-weight: bold; }
                         .text-left { text-align: left; }
                         .text-right { text-align: right; }
-                        .product-img { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
+                        /* 嚴格限制圖片寬高為 64px (網頁縮圖的 2 倍大)，並保持比例與圓角 */
+                        .img-cell { width: 75px; height: 75px; text-align: center; vertical-align: middle; }
+                        .product-img { width: 64px; height: 64px; object-fit: cover; border-radius: 4px; display: block; margin: 0 auto; }
                     </style>
                 </head>
                 <body>
@@ -392,14 +394,13 @@
 
                 if (!isSoldOut && qty > 0) {
                     let fileBaseNum = p.imgId ? p.imgId : p.id.split('.')[0].padStart(3, '0');
-                    // 轉為絕對或完整相對路徑，讓 Excel 可以正確讀取圖片
                     const imgUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1) + `pic/${fileBaseNum}.jpg`;
                     const subtotal = qty * p.price;
 
                     html += `
                         <tr>
                             <td><b>${p.id}</b></td>
-                            <td><img src="${imgUrl}" class="product-img" /></td>
+                            <td class="img-cell"><img src="${imgUrl}" class="product-img" /></td>
                             <td class="text-left">${p.name}</td>
                             <td class="text-left">${p.remark || ""}</td>
                             <td class="text-right">NT$ ${p.price.toLocaleString()}</td>
