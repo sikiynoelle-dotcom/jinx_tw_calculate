@@ -51,9 +51,10 @@
             z-index: 50;
             border-radius: 6px;
         }
-        /* 手機精簡模式：隱藏序號與商品名稱欄位 */
+        /* 手機精簡模式：隱藏序號、商品名稱與單項總價欄位 */
         body.compact-mode .col-id,
-        body.compact-mode .col-product-name {
+        body.compact-mode .col-product-name,
+        body.compact-mode .col-subtotal {
             display: none !important;
         }
     </style>
@@ -76,7 +77,7 @@
                     <!-- 按鈕群組：手機精簡模式切換、清除、匯入、匯出 Excel、匯出含圖 Excel -->
                     <div class="flex flex-col gap-1.5">
                         <button id="toggleModeBtn" onclick="toggleCompactMode()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1">
-                            📱 手機精簡模式 (隱藏序號/品名)
+                            📱 手機精簡模式 (極簡版)
                         </button>
                         <button onclick="resetForm()" class="bg-white/80 hover:bg-white text-indigo-600 text-xs px-3 py-1 rounded-lg border border-indigo-200 transition font-medium shadow-sm">
                             清除全部
@@ -118,7 +119,7 @@
                             <th class="py-3 px-4 font-semibold text-right">單價 (TWD)</th>
                             <th class="py-3 px-4 font-semibold text-center">購買數量</th>
                             <th class="py-3 px-4 font-semibold text-center">限購數量</th>
-                            <th class="py-3 px-4 font-semibold text-right">單項總價</th>
+                            <th class="py-3 px-4 font-semibold text-right col-subtotal">單項總價</th>
                             <th class="py-3 px-4 font-semibold text-center w-24">Sold out</th>
                         </tr>
                     </thead>
@@ -189,11 +190,11 @@
             const btn = document.getElementById('toggleModeBtn');
             if (isCompactMode) {
                 body.classList.add('compact-mode');
-                btn.innerText = "💻 恢復完整模式 (顯示序號/品名)";
+                btn.innerText = "💻 恢復完整模式 (顯示全部欄位)";
                 btn.className = "bg-slate-600 hover:bg-slate-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1";
             } else {
                 body.classList.remove('compact-mode');
-                btn.innerText = "📱 手機精簡模式 (隱藏序號/品名)";
+                btn.innerText = "📱 手機精簡模式 (極簡版)";
                 btn.className = "bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1";
             }
         }
@@ -229,7 +230,7 @@
                             class="w-20 text-center border border-slate-300 rounded-lg py-1 px-2 bg-white/90 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 shadow-sm">
                     </td>
                     <td class="py-3 px-4 text-center text-slate-500 text-xs">${p.limit}</td>
-                    <td id="subtotal_${index}" class="py-3 px-4 text-right font-semibold text-slate-800">NT$ 0</td>
+                    <td id="subtotal_${index}" class="py-3 px-4 text-right font-semibold text-slate-800 col-subtotal">NT$ 0</td>
                     <td class="py-3 px-4 text-center">
                         <input type="checkbox" id="soldout_${index}" onchange="toggleSoldOut(${index})" 
                             class="w-4 h-4 text-rose-600 bg-gray-100 border-gray-300 rounded focus:ring-rose-500 cursor-pointer">
