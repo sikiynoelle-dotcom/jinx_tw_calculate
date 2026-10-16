@@ -74,10 +74,10 @@
                         <div class="text-xs text-indigo-600 font-medium">總計金額 (TWD)</div>
                         <div id="grandTotal" class="text-2xl font-bold text-indigo-900">NT$ 0</div>
                     </div>
-                    <!-- 按鈕群組：手機精簡模式切換、清除、匯入、匯出 Excel、匯出含圖 Excel -->
+                    <!-- 按鈕群組：手機模式<=>完整模式、清除、匯入、匯出 Excel、匯出含圖 Excel -->
                     <div class="flex flex-col gap-1.5">
                         <button id="toggleModeBtn" onclick="toggleCompactMode()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1">
-                            📱 手機精簡模式 (極簡版)
+                            手機模式 ⇄ 完整模式
                         </button>
                         <button onclick="resetForm()" class="bg-white/80 hover:bg-white text-indigo-600 text-xs px-3 py-1 rounded-lg border border-indigo-200 transition font-medium shadow-sm">
                             清除全部
@@ -190,11 +190,9 @@
             const btn = document.getElementById('toggleModeBtn');
             if (isCompactMode) {
                 body.classList.add('compact-mode');
-                btn.innerText = "💻 恢復完整模式 (顯示全部欄位)";
                 btn.className = "bg-slate-600 hover:bg-slate-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1";
             } else {
                 body.classList.remove('compact-mode');
-                btn.innerText = "📱 手機精簡模式 (極簡版)";
                 btn.className = "bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1";
             }
         }
