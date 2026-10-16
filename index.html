@@ -68,7 +68,7 @@
                         <div class="text-xs text-indigo-600 font-medium">總計金額 (TWD)</div>
                         <div id="grandTotal" class="text-2xl font-bold text-indigo-900">NT$ 0</div>
                     </div>
-                    <!-- 按鈕群組：清除、匯入、匯出 Excel -->
+                    <!-- 按鈕群組：清除、匯入、匯出 Excel、匯出含圖 Excel -->
                     <div class="flex flex-col gap-1.5">
                         <button onclick="resetForm()" class="bg-white/80 hover:bg-white text-indigo-600 text-xs px-3 py-1 rounded-lg border border-indigo-200 transition font-medium shadow-sm">
                             清除全部
@@ -80,6 +80,9 @@
                         </button>
                         <button onclick="exportExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1">
                             📊 匯出 Excel
+                        </button>
+                        <button onclick="exportExcelWithImages()" class="bg-teal-700 hover:bg-teal-800 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1">
+                            🖼️ 匯出含圖 Excel
                         </button>
                     </div>
                 </div>
@@ -221,16 +224,13 @@
             const subtotalEl = document.getElementById(`subtotal_${index}`);
 
             if (isSoldOut) {
-                // 數量歸零並鎖定輸入框
                 qtyInput.value = 0;
                 qtyInput.disabled = true;
-                // 整行加入反灰與刪除線視覺效果
                 row.classList.add("bg-slate-200/60", "text-slate-400", "opacity-60");
                 nameEl.classList.add("line-through");
                 priceEl.classList.add("line-through");
                 subtotalEl.classList.add("line-through");
             } else {
-                // 解除鎖定與反灰
                 qtyInput.disabled = false;
                 row.classList.remove("bg-slate-200/60", "text-slate-400", "opacity-60");
                 nameEl.classList.remove("line-through");
@@ -249,7 +249,6 @@
                 
                 let qty = parseInt(qtyInput.value) || 0;
                 
-                // 如果被勾選 Sold out，強制金額為 0 且不計入
                 if (isSoldOut) {
                     qty = 0;
                     qtyInput.value = 0;
@@ -272,7 +271,6 @@
 
             document.getElementById('grandTotal').innerText = `NT$ ${currentGrandTotal.toLocaleString()}`;
 
-            // 贈品計算邏輯
             gift1000Count = currentGrandTotal >= 1000 ? 1 : 0;
 
             if (currentGrandTotal >= 2000) {
@@ -302,7 +300,6 @@
                 const isSoldOut = document.getElementById(`soldout_${index}`).checked;
                 const qty = parseInt(document.getElementById(`qty_${index}`).value) || 0;
                 
-                // 沒被勾選 Sold out 且數量大於 0 才匯出
                 if (!isSoldOut && qty > 0) {
                     hasItem = true;
                     const subtotal = qty * p.price;
@@ -343,6 +340,99 @@
             worksheet['!cols'] = colWidths;
 
             XLSX.writeFile(workbook, "jinx_order_summary.xlsx");
+        }
+
+        // 新增：匯出含統一尺寸商品圖的 Excel (透過 HTML 格式轉 Excel)
+        function exportExcelWithImages() {
+            let hasItem = false;
+            products.forEach((p, index) => {
+                const isSoldOut = document.getElementById(`soldout_${index}`).checked;
+                const qty = parseInt(document.getElementById(`qty_${index}`).value) || 0;
+                if (!isSoldOut && qty > 0) hasItem = true;
+            });
+
+            if (!hasItem) {
+                alert("目前沒有選購任何有效商品喔！");
+                return;
+            }
+
+            let html = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta charset="UTF-8">
+                    <style>
+                        table { border-collapse: collapse; width: 100%; font-family: 'Microsoft JhengHei', sans-serif; }
+                        th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: center; vertical-align: middle; }
+                        th { background-color: #f1f5f9; font-weight: bold; }
+                        .text-left { text-align: left; }
+                        .text-right { text-align: right; }
+                        .product-img { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Jinx 週邊商品預購清單</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>序號</th>
+                                <th>商品圖</th>
+                                <th class="text-left">商品名稱</th>
+                                <th class="text-left">備註</th>
+                                <th class="text-right">單價 (TWD)</th>
+                                <th>購買數量</th>
+                                <th class="text-right">單項總價 (TWD)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            products.forEach((p, index) => {
+                const isSoldOut = document.getElementById(`soldout_${index}`).checked;
+                const qty = parseInt(document.getElementById(`qty_${index}`).value) || 0;
+
+                if (!isSoldOut && qty > 0) {
+                    let fileBaseNum = p.imgId ? p.imgId : p.id.split('.')[0].padStart(3, '0');
+                    // 轉為絕對或完整相對路徑，讓 Excel 可以正確讀取圖片
+                    const imgUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1) + `pic/${fileBaseNum}.jpg`;
+                    const subtotal = qty * p.price;
+
+                    html += `
+                        <tr>
+                            <td><b>${p.id}</b></td>
+                            <td><img src="${imgUrl}" class="product-img" /></td>
+                            <td class="text-left">${p.name}</td>
+                            <td class="text-left">${p.remark || ""}</td>
+                            <td class="text-right">NT$ ${p.price.toLocaleString()}</td>
+                            <td><b>${qty}</b></td>
+                            <td class="text-right">NT$ ${subtotal.toLocaleString()}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            html += `
+                        </tbody>
+                    </table>
+                    <br>
+                    <h3>結算資訊</h3>
+                    <table>
+                        <tr><td class="text-left"><b>總金額 (TWD)</b></td><td class="text-right"><b>NT$ ${currentGrandTotal.toLocaleString()}</b></td></tr>
+                        <tr><td class="text-left"><b>EVENT1 Skinship</b></td><td class="text-right"><b>${gift1000Count} 張</b></td></tr>
+                        <tr><td class="text-left"><b>EVENT2 滿額小卡</b></td><td class="text-right"><b>${gift2000Count} 張</b></td></tr>
+                    </table>
+                </body>
+                </html>
+            `;
+
+            const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `jinx_order_with_images.xls`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function importExcel(event) {
