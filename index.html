@@ -51,6 +51,11 @@
             z-index: 50;
             border-radius: 6px;
         }
+        /* 手機精簡模式：隱藏序號與商品名稱欄位 */
+        body.compact-mode .col-id,
+        body.compact-mode .col-product-name {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="text-slate-800 py-8 px-4 sm:px-6 lg:px-8">
@@ -68,8 +73,11 @@
                         <div class="text-xs text-indigo-600 font-medium">總計金額 (TWD)</div>
                         <div id="grandTotal" class="text-2xl font-bold text-indigo-900">NT$ 0</div>
                     </div>
-                    <!-- 按鈕群組：清除、匯入、匯出 Excel、匯出含圖 Excel -->
+                    <!-- 按鈕群組：手機精簡模式切換、清除、匯入、匯出 Excel、匯出含圖 Excel -->
                     <div class="flex flex-col gap-1.5">
+                        <button id="toggleModeBtn" onclick="toggleCompactMode()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1">
+                            📱 手機精簡模式 (隱藏序號/品名)
+                        </button>
                         <button onclick="resetForm()" class="bg-white/80 hover:bg-white text-indigo-600 text-xs px-3 py-1 rounded-lg border border-indigo-200 transition font-medium shadow-sm">
                             清除全部
                         </button>
@@ -104,9 +112,9 @@
                 <table class="w-full text-left border-collapse">
                     <thead>
                         <tr class="bg-slate-100/60 text-slate-700 text-xs uppercase tracking-wider border-b border-slate-200/60">
-                            <th class="py-3 px-4 font-semibold w-16 text-center">序號</th>
+                            <th class="py-3 px-4 font-semibold w-16 text-center col-id">序號</th>
                             <th class="py-3 px-4 font-semibold w-20 text-center">商品圖</th>
-                            <th class="py-3 px-4 font-semibold">商品名稱 / 備註</th>
+                            <th class="py-3 px-4 font-semibold col-product-name">商品名稱 / 備註</th>
                             <th class="py-3 px-4 font-semibold text-right">單價 (TWD)</th>
                             <th class="py-3 px-4 font-semibold text-center">購買數量</th>
                             <th class="py-3 px-4 font-semibold text-center">限購數量</th>
@@ -173,6 +181,22 @@
         let currentGrandTotal = 0;
         let gift1000Count = 0;
         let gift2000Count = 0;
+        let isCompactMode = false;
+
+        function toggleCompactMode() {
+            isCompactMode = !isCompactMode;
+            const body = document.body;
+            const btn = document.getElementById('toggleModeBtn');
+            if (isCompactMode) {
+                body.classList.add('compact-mode');
+                btn.innerText = "💻 恢復完整模式 (顯示序號/品名)";
+                btn.className = "bg-slate-600 hover:bg-slate-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1";
+            } else {
+                body.classList.remove('compact-mode');
+                btn.innerText = "📱 手機精簡模式 (隱藏序號/品名)";
+                btn.className = "bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1 rounded-lg transition font-medium shadow-sm flex items-center justify-center gap-1";
+            }
+        }
 
         function renderTable() {
             const tbody = document.getElementById('productTableBody');
@@ -180,14 +204,13 @@
             
             products.forEach((p, index) => {
                 let fileBaseNum = p.imgId ? p.imgId : p.id.split('.')[0].padStart(3, '0');
-                // 網頁預覽維持從 pic/ 讀取
                 const imgFileName = `pic/${fileBaseNum}.jpg`;
 
                 const tr = document.createElement('tr');
                 tr.id = `row_${index}`;
                 tr.className = "hover:bg-white/40 transition-colors";
                 tr.innerHTML = `
-                    <td class="py-3 px-4 text-center font-bold text-indigo-700">${p.id}</td>
+                    <td class="py-3 px-4 text-center font-bold text-indigo-700 col-id">${p.id}</td>
                     <td class="py-3 px-4 text-center">
                         <div class="img-container">
                             <img src="${imgFileName}" alt="${p.name}" 
@@ -195,7 +218,7 @@
                                 onerror="this.src='https://via.placeholder.com/48?text=No+Img'">
                         </div>
                     </td>
-                    <td class="py-3 px-4">
+                    <td class="py-3 px-4 col-product-name">
                         <div id="name_${index}" class="font-medium text-slate-800">${p.name}</div>
                         ${p.remark ? `<div class="text-xs text-rose-500 font-medium mt-0.5">備註：${p.remark}</div>` : ''}
                     </td>
@@ -228,13 +251,13 @@
                 qtyInput.value = 0;
                 qtyInput.disabled = true;
                 row.classList.add("bg-slate-200/60", "text-slate-400", "opacity-60");
-                nameEl.classList.add("line-through");
+                if(nameEl) nameEl.classList.add("line-through");
                 priceEl.classList.add("line-through");
                 subtotalEl.classList.add("line-through");
             } else {
                 qtyInput.disabled = false;
                 row.classList.remove("bg-slate-200/60", "text-slate-400", "opacity-60");
-                nameEl.classList.remove("line-through");
+                if(nameEl) nameEl.classList.remove("line-through");
                 priceEl.classList.remove("line-through");
                 subtotalEl.classList.remove("line-through");
             }
@@ -343,7 +366,6 @@
             XLSX.writeFile(workbook, "jinx_order_summary.xlsx");
         }
 
-        // 修改：匯出含圖 Excel 時，圖片直接抓取已處理好的 img_zoom/ 資料夾圖片
         function exportExcelWithImages() {
             let hasItem = false;
             products.forEach((p, index) => {
@@ -367,7 +389,6 @@
                         th { background-color: #f1f5f9; font-weight: bold; }
                         .text-left { text-align: left; }
                         .text-right { text-align: right; }
-                        /* 直接讀取 img_zoom 內處理好的圖片，維持乾淨整齊的格子大小 */
                         .img-cell { width: 75px; height: 75px; text-align: center; vertical-align: middle; }
                         .product-img { width: 64px; height: 64px; object-fit: contain; display: block; margin: 0 auto; border-radius: 4px; }
                     </style>
@@ -395,7 +416,6 @@
 
                 if (!isSoldOut && qty > 0) {
                     let fileBaseNum = p.imgId ? p.imgId : p.id.split('.')[0].padStart(3, '0');
-                    // 關鍵修改：圖片來源指向 img_zoom 資料夾
                     const imgUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1) + `img_zoom/${fileBaseNum}.jpg`;
                     const subtotal = qty * p.price;
 
